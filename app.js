@@ -4,24 +4,25 @@ const API_URL = 'https://twofactorauthenticationforloginsecuritya.onrender.com';
 async function register() {
     const username = document.getElementById("reg-username").value;
     const password = document.getElementById("reg-password").value;
+    const email = document.getElementById("reg-email").value;
 
     const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, email })
     });
 
     if (response.ok) {
-        const data = await response.json();
-        alert(`Registration successful! Save your secret key: ${data.secret_key}`);
+        alert("Registration successful! You can now log in.");
         window.location.href = "login.html";
     } else {
         const error = await response.json();
         alert(error.error);
     }
 }
+
 
 // Log in the user
 async function login() {

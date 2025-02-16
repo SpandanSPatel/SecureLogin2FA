@@ -1,14 +1,21 @@
 from flask import Flask, request, jsonify
 import bcrypt
-import pyotp
 import json
 import os
 from flask_cors import CORS
+from email.message import EmailMessage
+import smtplib
+import ssl
+import random
 
 app = Flask(__name__)
 CORS(app)
-    
+
 USER_DATA_FILE = 'user_data.json'
+
+# Email configuration
+EMAIL_SENDER = 'secure2faotpbot@gmail.com'
+EMAIL_PASSWORD = 'uksm hvgd ojzp juov'
 
 # Helper functions
 def load_user_data():
@@ -27,6 +34,17 @@ def hash_password(password):
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
+def send_email(receiver_email, subject, body):
+    em = EmailMessage()
+    em['From'] = EMAIL_SENDER
+    em['To'] = receiver_email
+    em['Subject'] = subject
+    em.set_content(body)
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        smtp.sendmail(EMAIL_SENDER, receiver_email, em.as_string())
+
 # Load user data
 user_data = load_user_data()
 
@@ -36,16 +54,16 @@ def register():
     data = request.json
     username = data.get('username')
     password = data.get('password')
+    email = data.get('email')
 
     if username in user_data:
         return jsonify({"error": "User already exists!"}), 400
 
     hashed_password = hash_password(password)
-    secret_key = pyotp.random_base32()
-    user_data[username] = {"password": hashed_password, "secret_key": secret_key}
+    user_data[username] = {"password": hashed_password, "email": email}
     save_user_data(user_data)
 
-    return jsonify({"message": "User registered successfully!", "secret_key": secret_key}), 200
+    return jsonify({"message": "User registered successfully!"}), 200
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -57,28 +75,31 @@ def login():
         return jsonify({"error": "Invalid username or password!"}), 401
 
     # Generate OTP
-    secret_key = user_data[username]['secret_key']
-    totp = pyotp.TOTP(secret_key)
-    otp = totp.now()
-    return jsonify({"message": "Login successful!"}), 200
+    otp = random.randint(100000, 999999)
+    user_data[username]['otp'] = otp
+    save_user_data(user_data)
+
+    # Send OTP via email
+    email = user_data[username]['email']
+    send_email(email, "Your OTP Code", f"Your OTP is: {otp}")
+
+    return jsonify({"message": "Login successful! OTP sent to your email."}), 200
 
 @app.route('/verify-otp', methods=['POST'])
 def verify_otp():
     data = request.json
     username = data.get('username')
-    otp = data.get('otp')
+    otp = int(data.get('otp'))
 
-    if username not in user_data:
-        return jsonify({"error": "Invalid user!"}), 401
+    if username not in user_data or user_data[username].get('otp') != otp:
+        return jsonify({"error": "Invalid OTP!"}), 400
 
-    secret_key = user_data[username]['secret_key']
-    totp = pyotp.TOTP(secret_key)
-    if totp.verify(otp):
-        return jsonify({"message": "OTP verified successfully!"}), 200
-    return jsonify({"error": "Invalid OTP!"}), 400
+    # Clear OTP after verification
+    user_data[username]['otp'] = None
+    save_user_data(user_data)
+
+    return jsonify({"message": "OTP verified successfully!"}), 200
 
 if __name__ == '__main__':
-    # Get the port from the environment variable, default to 5000
     port = int(os.environ.get("PORT", 5000))
-    # Bind to 0.0.0.0 to make the app accessible externally
     app.run(host="0.0.0.0", port=port)
