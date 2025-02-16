@@ -34,16 +34,75 @@ def hash_password(password):
 def verify_password(password, hashed):
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-def send_email(receiver_email, subject, body):
+def send_email(receiver_email, subject, otp):
     em = EmailMessage()
     em['From'] = EMAIL_SENDER
     em['To'] = receiver_email
     em['Subject'] = subject
-    em.set_content(body)
+
+    # HTML content for the email
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f9f9f9;
+            }}
+            .email-container {{
+                max-width: 600px;
+                margin: 20px auto;
+                padding: 20px;
+                background-color: #ffffff;
+                border: 1px solid #dddddd;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }}
+            .email-header {{
+                text-align: center;
+                padding-bottom: 20px;
+            }}
+            .otp {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #007bff;
+                text-align: center;
+                margin: 20px 0;
+            }}
+            .email-footer {{
+                text-align: center;
+                font-size: 14px;
+                color: #777777;
+                margin-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-header">
+                <h1>Your OTP Code</h1>
+                <p>Please use the following OTP to complete your login:</p>
+            </div>
+            <div class="otp">{otp}</div>
+            <p style="text-align: center;">If you did not request this, please ignore this email.</p>
+            <div class="email-footer">
+                <p>&copy; 2025 SecureLogin. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    em.set_content(f"Your OTP is: {otp}", subtype="plain")
+    em.add_alternative(html_content, subtype="html")  # Add HTML content
+
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
         smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
         smtp.sendmail(EMAIL_SENDER, receiver_email, em.as_string())
+
 
 # Load user data
 user_data = load_user_data()
