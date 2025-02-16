@@ -8,7 +8,6 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Path to user data
 USER_DATA_FILE = 'user_data.json'
 
 # Helper functions
