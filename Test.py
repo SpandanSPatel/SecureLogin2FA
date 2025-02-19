@@ -3,7 +3,7 @@ import ssl
 import smtplib
 email_sender = 'secure2faotpbot@gmail.com'
 email_pass='uksm hvgd ojzp juov'
-email_receiver='spandanspatel14122006@gmail.com'
+email_receiver=''
 
 Subject= "TESTING"
 body = "TESTING for project"
